@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop, 'feature/**' ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libncurses5-dev libncursesw5-dev build-essential
+
+    - name: Build project
+      run: make clean && make
+
+    - name: Run unit tests
+      run: cd tests && make test
+
+    - name: Test A2S query utility
+      run: |
+        ./test_a2s --help || true  # Should show usage
+
+    - name: Check for memory leaks (if valgrind available)
+      run: |
+        if command -v valgrind &> /dev/null; then
+          cd tests && make clean && make
+          valgrind --leak-check=full --error-exitcode=1 ./test_string_parsing
+          valgrind --leak-check=full --error-exitcode=1 ./test_a2s_parsing
+        else
+          echo "Valgrind not available, skipping memory leak tests"
+        fi
+
+  static-analysis:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cppcheck clang-tidy
+
+    - name: Run cppcheck
+      run: |
+        cppcheck --enable=all --suppress=missingIncludeSystem \
+          --error-exitcode=1 --inline-suppr \
+          *.c *.h 2>&1 | tee cppcheck-report.txt
+
+    - name: Run clang-tidy (if available)
+      run: |
+        if command -v clang-tidy &> /dev/null; then
+          clang-tidy *.c -- -I. -std=c11 || true
+        fi
+
+  security-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libncurses5-dev
+
+    - name: Build with security flags
+      run: |
+        make clean
+        CFLAGS="-Wall -Wextra -Werror -O2 -D_FORTIFY_SOURCE=2 -fstack-protector-strong" make
+
+    - name: Check for common vulnerabilities
+      run: |
+        # Check for gets() (banned function)
+        ! grep -r "gets(" *.c || (echo "ERROR: Dangerous gets() found" && exit 1)
+
+        # Check for strcpy without bounds (should use strncpy or strlcpy)
+        ! grep -r "strcpy(" *.c || echo "WARNING: strcpy found, consider strncpy"
+
+        # Check for sprintf (should use snprintf)
+        ! grep -r "sprintf(" *.c || echo "WARNING: sprintf found, consider snprintf"

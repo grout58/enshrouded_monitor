@@ -7,6 +7,7 @@
 #include "system_monitor.h"
 #include "process_monitor.h"
 #include "a2s_query.h"
+#include "formatting.h"
 
 #define REFRESH_INTERVAL_MS 1000
 #define RAM_DANGER_THRESHOLD_GB 12
@@ -48,37 +49,6 @@ void draw_bar(int y, int x, const char *label, double percent, int width, int is
     }
 
     mvprintw(y, bar_start + width + 1, "%.1f%%", percent);
-}
-
-// Format bytes to human-readable format
-void format_bytes(uint64_t kb, char *buffer, size_t buf_size) {
-    if (kb < 1024) {
-        snprintf(buffer, buf_size, "%lu KB", kb);
-    } else if (kb < 1024 * 1024) {
-        snprintf(buffer, buf_size, "%.1f MB", kb / 1024.0);
-    } else {
-        snprintf(buffer, buf_size, "%.2f GB", kb / (1024.0 * 1024.0));
-    }
-}
-
-// Format uptime to human-readable format
-void format_uptime(uint64_t seconds, char *buffer, size_t buf_size) {
-    uint64_t days = seconds / 86400;
-    uint64_t hours = (seconds % 86400) / 3600;
-    uint64_t mins = (seconds % 3600) / 60;
-    uint64_t secs = seconds % 60;
-
-    if (days > 0) {
-        snprintf(buffer, buf_size, "%lud %02luh %02lum",
-                (unsigned long)days, (unsigned long)hours, (unsigned long)mins);
-    } else if (hours > 0) {
-        snprintf(buffer, buf_size, "%luh %02lum %02lus",
-                (unsigned long)hours, (unsigned long)mins, (unsigned long)secs);
-    } else if (mins > 0) {
-        snprintf(buffer, buf_size, "%lum %02lus", (unsigned long)mins, (unsigned long)secs);
-    } else {
-        snprintf(buffer, buf_size, "%lus", (unsigned long)secs);
-    }
 }
 
 void print_usage(const char *program_name) {

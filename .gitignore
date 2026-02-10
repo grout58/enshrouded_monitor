@@ -3,6 +3,12 @@
 emon
 test_a2s
 
+# Test artifacts
+tests/test_formatting
+tests/test_a2s_parsing
+tests/test_string_parsing
+tests/*.o
+
 # Logs
 logs/
 *.log
