@@ -2,6 +2,7 @@
 #define PROCESS_MONITOR_H
 
 #include <stdint.h>
+#include <sys/types.h>
 #include <time.h>
 
 #define MAX_PROCESS_NAME 256

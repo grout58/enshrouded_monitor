@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include "process_monitor.h"
 #include <stdio.h>
 #include <stdlib.h>

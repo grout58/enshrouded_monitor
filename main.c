@@ -117,6 +117,11 @@ int main(int argc, char *argv[]) {
     // Initialize A2S query with configured host/port
     int a2s_available = (a2s_query_init(query_host, query_port) == 0);
 
+    // Determine if we're monitoring a remote server or localhost
+    int is_remote = (strcmp(query_host, "localhost") != 0 &&
+                     strcmp(query_host, "127.0.0.1") != 0 &&
+                     strcmp(query_host, "::1") != 0);
+
     int ch;
     system_stats_t stats;
     process_info_t server_process;
@@ -170,11 +175,15 @@ int main(int argc, char *argv[]) {
         // Separator
         mvprintw(6, 0, "================================");
 
-        // Search for Enshrouded server process
-        server_found = (process_find_by_name("EnshroudedServer", &server_process) == 0);
+        // Search for Enshrouded server process (only if local)
+        if (!is_remote) {
+            server_found = (process_find_by_name("EnshroudedServer", &server_process) == 0);
+        } else {
+            server_found = 0; // Skip local process search for remote servers
+        }
 
         // Query A2S_INFO (every refresh if available)
-        if (a2s_available && server_found) {
+        if (a2s_available) {
             int query_result = a2s_query_info(&server_info);
             if (query_result == 0) {
                 a2s_query_success = 1;
@@ -186,24 +195,57 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        if (server_found) {
+        // Display server status and info
+        if (a2s_query_success) {
             // Status indicator based on A2S query
-            if (a2s_query_success) {
-                int color = COLOR_PAIR(1); // Green
-                if (server_info.status == SERVER_STATUS_LOADING) {
-                    color = COLOR_PAIR(3); // Yellow
-                } else if (server_info.status == SERVER_STATUS_LOBBY) {
-                    color = COLOR_PAIR(4); // Cyan
-                }
-
-                attron(A_BOLD | color);
-                mvprintw(8, 0, "Server Status: %s", a2s_status_string(server_info.status));
-                attroff(A_BOLD | color);
-            } else {
-                attron(A_BOLD | COLOR_PAIR(3));
-                mvprintw(8, 0, "Server Status: RUNNING (Query Unavailable)");
-                attroff(A_BOLD | COLOR_PAIR(3));
+            int color = COLOR_PAIR(1); // Green
+            if (server_info.status == SERVER_STATUS_LOADING) {
+                color = COLOR_PAIR(3); // Yellow
+            } else if (server_info.status == SERVER_STATUS_LOBBY) {
+                color = COLOR_PAIR(4); // Cyan
             }
+
+            attron(A_BOLD | color);
+            mvprintw(8, 0, "Server Status: %s", a2s_status_string(server_info.status));
+            attroff(A_BOLD | color);
+
+            if (is_remote) {
+                attron(COLOR_PAIR(4));
+                mvprintw(9, 0, "Mode: Remote Monitoring");
+                attroff(COLOR_PAIR(4));
+            }
+
+            // Local process info (only if found)
+            int line = 10;
+            if (server_found) {
+                mvprintw(line++, 0, "Process: %s", server_process.name);
+                mvprintw(line++, 0, "PID:     %d", server_process.pid);
+
+                char uptime_str[64];
+                format_uptime(server_process.uptime_seconds, uptime_str, sizeof(uptime_str));
+                mvprintw(line++, 0, "Uptime:  %s", uptime_str);
+
+                char mem_str[32];
+                format_bytes(server_process.rss_kb, mem_str, sizeof(mem_str));
+                mvprintw(line++, 0, "Memory:  %s", mem_str);
+                line++;
+            }
+
+            // Separator
+            mvprintw(line++, 0, "--- Server Details (A2S Query) ---");
+
+            // Server details from A2S query
+            mvprintw(line++, 0, "Server Name: %s", server_info.name);
+            mvprintw(line++, 0, "Version:     %s", server_info.version);
+            mvprintw(line++, 0, "Players:     %d/%d", server_info.players, server_info.max_players);
+            mvprintw(line++, 0, "Map:         %s", server_info.map);
+            mvprintw(line++, 0, "Game:        %s", server_info.game);
+
+        } else if (!is_remote && server_found) {
+            // Local server found but A2S query failed
+            attron(A_BOLD | COLOR_PAIR(3));
+            mvprintw(8, 0, "Server Status: RUNNING (Query Unavailable)");
+            attroff(A_BOLD | COLOR_PAIR(3));
 
             // Process info
             mvprintw(10, 0, "Process: %s", server_process.name);
@@ -219,28 +261,27 @@ int main(int argc, char *argv[]) {
 
             // Separator
             mvprintw(15, 0, "--- Server Details (A2S Query) ---");
-
-            // Server details from A2S query
-            if (a2s_query_success) {
-                mvprintw(16, 0, "Server Name: %s", server_info.name);
-                mvprintw(17, 0, "Version:     %s", server_info.version);
-                mvprintw(18, 0, "Players:     %d/%d", server_info.players, server_info.max_players);
-                mvprintw(19, 0, "Map:         %s", server_info.map);
-                mvprintw(20, 0, "Game:        %s", server_info.game);
-            } else {
-                attron(COLOR_PAIR(3));
-                mvprintw(16, 0, "A2S Query: No response from %s:%d", query_host, query_port);
-                mvprintw(17, 0, "Server may not have query port enabled or firewall blocking.");
-                attroff(COLOR_PAIR(3));
-            }
+            attron(COLOR_PAIR(3));
+            mvprintw(16, 0, "A2S Query: No response from %s:%d", query_host, query_port);
+            mvprintw(17, 0, "Server may not have query port enabled or firewall blocking.");
+            attroff(COLOR_PAIR(3));
 
         } else {
+            // No A2S response and no local process
             attron(A_BOLD | COLOR_PAIR(2));
             mvprintw(8, 0, "Server Status: NOT FOUND");
             attroff(A_BOLD | COLOR_PAIR(2));
 
-            mvprintw(10, 0, "Searching for 'EnshroudedServer.exe' process...");
-            mvprintw(11, 0, "Make sure the server is running via Wine/Proton.");
+            if (is_remote) {
+                attron(COLOR_PAIR(4));
+                mvprintw(9, 0, "Mode: Remote Monitoring");
+                attroff(COLOR_PAIR(4));
+                mvprintw(11, 0, "No A2S response from %s:%d", query_host, query_port);
+                mvprintw(12, 0, "Server may be offline or query port blocked.");
+            } else {
+                mvprintw(10, 0, "Searching for 'EnshroudedServer.exe' process...");
+                mvprintw(11, 0, "Make sure the server is running via Wine/Proton.");
+            }
         }
 
         // Footer
