@@ -1,6 +1,7 @@
 # Build artifacts
 *.o
 emon
+test_a2s
 
 # Logs
 logs/
@@ -12,6 +13,9 @@ logs/
 *~
 .vscode/
 .idea/
+
+# Claude Code local settings
+.claude/settings.local.json
 
 # Debug files
 *.dSYM/
