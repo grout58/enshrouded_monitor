@@ -60,13 +60,27 @@ int a2s_query_init(const char *host, uint16_t port) {
 }
 
 // Read a null-terminated string from buffer
+// Returns -1 on error (offset out of bounds), or number of characters read
 static int read_string(const uint8_t *buffer, int max_len, char *dest, int dest_size, int *offset) {
+    // Validate input parameters
+    if (!buffer || !dest || !offset || *offset < 0 || *offset >= max_len) {
+        if (dest && dest_size > 0) {
+            dest[0] = '\0';
+        }
+        return -1;
+    }
+
     int i = 0;
     while (*offset < max_len && buffer[*offset] != 0 && i < dest_size - 1) {
         dest[i++] = buffer[(*offset)++];
     }
     dest[i] = '\0';
-    (*offset)++; // Skip null terminator
+
+    // Only skip null terminator if we're still within bounds and found one
+    if (*offset < max_len && buffer[*offset] == 0) {
+        (*offset)++;
+    }
+
     return i;
 }
 
@@ -189,54 +203,88 @@ int a2s_query_info(a2s_info_t *info) {
 
     int offset = 5; // Skip header and response type
 
+    // Validate minimum packet size
+    if (received < 10) {
+        return -1;
+    }
+
     // Parse protocol version
+    if (offset >= received) {
+        return -1;
+    }
     info->protocol = buffer[offset++];
 
-    // Parse strings
-    read_string(buffer, received, info->name, MAX_SERVER_NAME, &offset);
-    read_string(buffer, received, info->map, MAX_MAP_NAME, &offset);
-    read_string(buffer, received, info->folder, MAX_GAME_NAME, &offset);
-    read_string(buffer, received, info->game, MAX_GAME_NAME, &offset);
+    // Parse strings with error checking
+    if (read_string(buffer, received, info->name, MAX_SERVER_NAME, &offset) < 0) {
+        return -1;
+    }
+    if (read_string(buffer, received, info->map, MAX_MAP_NAME, &offset) < 0) {
+        return -1;
+    }
+    if (read_string(buffer, received, info->folder, MAX_GAME_NAME, &offset) < 0) {
+        return -1;
+    }
+    if (read_string(buffer, received, info->game, MAX_GAME_NAME, &offset) < 0) {
+        return -1;
+    }
 
     // Parse app ID (2 bytes, little-endian)
     if (offset + 2 <= received) {
         info->app_id = buffer[offset] | (buffer[offset + 1] << 8);
         offset += 2;
+    } else {
+        info->app_id = 0;
     }
 
     // Parse player counts
     if (offset + 2 <= received) {
         info->players = buffer[offset++];
         info->max_players = buffer[offset++];
+    } else {
+        info->players = 0;
+        info->max_players = 0;
     }
 
     // Parse bots
     if (offset + 1 <= received) {
         info->bots = buffer[offset++];
+    } else {
+        info->bots = 0;
     }
 
     // Parse server type ('d' = dedicated, 'l' = non-dedicated, 'p' = SourceTV)
     if (offset + 1 <= received) {
         info->server_type = buffer[offset++];
+    } else {
+        info->server_type = 'u'; // unknown
     }
 
     // Parse environment ('l' = Linux, 'w' = Windows, 'm' = Mac)
     if (offset + 1 <= received) {
         info->environment = buffer[offset++];
+    } else {
+        info->environment = 'u'; // unknown
     }
 
     // Parse visibility (0 = public, 1 = private)
     if (offset + 1 <= received) {
         info->visibility = buffer[offset++];
+    } else {
+        info->visibility = 0;
     }
 
     // Parse VAC (0 = unsecured, 1 = secured)
     if (offset + 1 <= received) {
         info->vac = buffer[offset++];
+    } else {
+        info->vac = 0;
     }
 
-    // Parse version string
-    read_string(buffer, received, info->version, MAX_VERSION_STRING, &offset);
+    // Parse version string with error checking
+    if (read_string(buffer, received, info->version, MAX_VERSION_STRING, &offset) < 0) {
+        // If version string is missing, use empty string
+        info->version[0] = '\0';
+    }
 
     // Determine server status
     info->status = a2s_parse_server_status(info->name, info->map);

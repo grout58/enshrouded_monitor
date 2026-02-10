@@ -7,6 +7,7 @@ test_a2s
 tests/test_formatting
 tests/test_a2s_parsing
 tests/test_string_parsing
+tests/test_security
 tests/*.o
 
 # Logs
