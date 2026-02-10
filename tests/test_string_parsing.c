@@ -7,18 +7,27 @@
 #include <stdint.h>
 #include <string.h>
 
-// Mock version of read_string for testing (will be replaced with actual)
+// Updated version with security fixes
 static int read_string(const uint8_t *buffer, int max_len, char *dest, int dest_size, int *offset) {
+    // Validate input parameters
+    if (!buffer || !dest || !offset || *offset < 0 || *offset >= max_len) {
+        if (dest && dest_size > 0) {
+            dest[0] = '\0';
+        }
+        return -1;
+    }
+
     int i = 0;
     while (*offset < max_len && buffer[*offset] != 0 && i < dest_size - 1) {
         dest[i++] = buffer[(*offset)++];
     }
     dest[i] = '\0';
 
-    // Only skip null terminator if we're still within bounds
+    // Only skip null terminator if we're still within bounds and found one
     if (*offset < max_len && buffer[*offset] == 0) {
         (*offset)++;
     }
+
     return i;
 }
 
@@ -105,9 +114,10 @@ void test_read_string_offset_at_end(void) {
 
     int len = read_string(buffer, 5, dest, sizeof(dest), &offset);
 
+    // With security fixes, offset >= max_len returns -1 (error)
     TEST_ASSERT_EQUAL_STRING("", dest);
-    TEST_ASSERT_EQUAL_INT(0, len);
-    TEST_ASSERT_EQUAL_INT(5, offset); // Should not increment past end
+    TEST_ASSERT_EQUAL_INT(-1, len); // Error code
+    TEST_ASSERT_EQUAL_INT(5, offset); // Should not change on error
 }
 
 int main(void) {

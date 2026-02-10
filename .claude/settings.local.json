@@ -12,7 +12,9 @@
       "Bash(git commit:*)",
       "Bash(make clean:*)",
       "Bash(make test:*)",
-      "Bash(make test_a2s:*)"
+      "Bash(make test_a2s:*)",
+      "Bash(cat:*)",
+      "Bash(git checkout:*)"
     ]
   }
 }

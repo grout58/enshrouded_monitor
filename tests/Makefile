@@ -7,7 +7,7 @@ SRC_DIR = ..
 SOURCES = $(SRC_DIR)/a2s_query.c
 
 # Test files
-TEST_SOURCES = test_formatting.c test_a2s_parsing.c test_string_parsing.c
+TEST_SOURCES = test_formatting.c test_a2s_parsing.c test_string_parsing.c test_security.c
 TEST_BINS = $(TEST_SOURCES:.c=)
 
 # Utility sources that need to be compiled for tests
@@ -28,6 +28,10 @@ test_a2s_parsing: test_a2s_parsing.c
 # Build string parsing tests (standalone)
 test_string_parsing: test_string_parsing.c
 	$(CC) $(CFLAGS) test_string_parsing.c -o test_string_parsing $(LDFLAGS)
+
+# Build security tests (P1 vulnerability fixes)
+test_security: test_security.c
+	$(CC) $(CFLAGS) test_security.c -o test_security $(LDFLAGS)
 
 # Run all tests
 test: all
