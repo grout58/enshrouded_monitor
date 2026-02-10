@@ -1,0 +1,15 @@
+# Enshrouded Monitor Configuration Example
+# Copy this to ~/.config/emon/config or /etc/emon/config
+
+# Target server for A2S queries
+QUERY_HOST=10.0.2.33
+QUERY_PORT=15637
+
+# Server log path for Phase 3 (log tailing)
+LOG_PATH=./logs/enshrouded_server.log
+
+# UI refresh interval in milliseconds
+REFRESH_INTERVAL=1000
+
+# RAM danger threshold in GB (triggers red warning)
+RAM_DANGER_THRESHOLD=12

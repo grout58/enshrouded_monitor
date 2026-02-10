@@ -1,0 +1,24 @@
+# Build artifacts
+*.o
+emon
+
+# Logs
+logs/
+*.log
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Core dumps
+core
+core.*
